@@ -435,7 +435,7 @@ class SnakeGame:
         # Realize remove head
         for i in range(self.player_num):
             if (self.players[i].remove_head):
-                assert(not self.players[i].NowDead)
+                # assert(not self.players[i].NowDead)
                 self.__remove_head__(i)
 
     def __on_kill__(self, killer: int, killed: int, active_kill: bool):
@@ -557,38 +557,34 @@ if __name__ ==  '__main__':
     #     sleep(1.0)
 
 
-    # Inspect generation of props and sugars
-    # input_dir = 'game_info_sample/'
-    # input_dir = r'D:\zzx\Desktop\tmp\game_info_sample_20220404_1'
-    input_dir = 'game_info_test/'
-    m = Map(6)
-    filelist = sorted(os.listdir(input_dir))
-    pre_props = [set(), set(), set()]
-    pre_sugars = set()
-    diffs = []
-    for file in filelist:
-        m.load_game_info(os.path.join(input_dir, file))
-        props = m.PropPosition
-        sugars = m.SugarPosition
-        # if (pre_props is not None):
-        diff = [0, 0, 0, 0]
-        for i in range(3):
-            diff[i] = len(props[i] - pre_props[i])
-        diff[3] = len(sugars - pre_sugars)
-        diffs.append(diff)
-        print(f'Round {m.Time}, diff = {str(diff)}, diff_sum = {str(np.sum(diffs, axis=0))}')
-        pre_props = props
-        pre_sugars = sugars
-    diff_sum = np.sum(diffs[1:], axis=0)
-    diff_sum[3] -= np.sum(np.sort(np.array(diffs)[1:, 3])[-6:])
-    print(f'diff_sum = {str(diff_sum)}')
+    # # Inspect generation of props and sugars
+    # # input_dir = 'game_info_sample/'
+    # # input_dir = r'D:\zzx\Desktop\tmp\game_info_sample_20220404_1'
+    # input_dir = 'game_info_test/'
+    # m = Map(6)
+    # filelist = sorted(os.listdir(input_dir))
+    # pre_props = [set(), set(), set()]
+    # pre_sugars = set()
+    # diffs = []
+    # for file in filelist:
+    #     m.load_game_info(os.path.join(input_dir, file))
+    #     props = m.PropPosition
+    #     sugars = m.SugarPosition
+    #     # if (pre_props is not None):
+    #     diff = [0, 0, 0, 0]
+    #     for i in range(3):
+    #         diff[i] = len(props[i] - pre_props[i])
+    #     diff[3] = len(sugars - pre_sugars)
+    #     diffs.append(diff)
+    #     print(f'Round {m.Time}, diff = {str(diff)}, diff_sum = {str(np.sum(diffs, axis=0))}')
+    #     pre_props = props
+    #     pre_sugars = sugars
+    # diff_sum = np.sum(diffs[1:], axis=0)
+    # diff_sum[3] -= np.sum(np.sort(np.array(diffs)[1:, 3])[-6:])
+    # print(f'diff_sum = {str(diff_sum)}')
 
-    # game = SnakeGame([AI0 for _ in range(6)])
-    # game.run_till_end(savedir='game_info_test')
+    game = SnakeGame([AI0 for _ in range(6)])
+    game.run_till_end(savedir='game_info_test')
 
-
-# %%
-game = SnakeGame([AI0 for _ in range(6)])
-game.run_till_end(savedir='game_info_test')
 
 # %%
