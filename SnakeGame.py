@@ -9,31 +9,8 @@ from time import sleep
 from colorama import Fore, Style
 from multiprocessing import Pool
 
-from AI0 import AI0
-from utils import create_folder, save_json, load_json
-
-# %%
-RIGHT = (0, 1)
-LEFT = (0, -1)
-UP = (-1, 0)
-DOWN = (1, 0)
-
-DIRECTIONS = [RIGHT, LEFT, UP, DOWN]
-
-def key2dir(key: str):
-    if (key == 'w'):
-        return UP
-    if (key == 'a'):
-        return LEFT
-    if (key == 's'):
-        return DOWN
-    if (key == 'd'):
-        return RIGHT
-    raise ValueError(f'Error: invalid key: {key}')
-
-def add_c(x: tuple, y: tuple):
-    return (x[0]+y[0], x[1]+y[1])
-
+from AI0 import AI0, AI0_rand, AI_greedy_0
+from utils import create_folder, save_json, DIRECTIONS, load_json, key2dir, add_c
 
 # %%
 class Player:
@@ -95,7 +72,6 @@ class Map:
         self.all_grids = set([(x, y) for x in range(self.Length) for y in range(self.Width)])
     
     def gen_walls_and_props(self):
-        # TODO
         # Generate walls
         if (self.Time % 5 == 0 and (self.Time >= 100 or self.Length * self.Width - len(self.WallPosition) > 400)):
             i = self.wall_gen_ind
@@ -286,12 +262,13 @@ class SnakeGame:
         print(f'Round {self.map.Time}')
         self.map.print()
 
-    def run_till_end(self, time_sleep=0, savedir=None):
+    def run_till_end(self, time_sleep=0, savedir=None, print=True):
         # Run a whole game
         if (savedir is not None):
             create_folder(savedir)
         def print_and_save():
-            self.print()
+            if (print):
+                self.print()
             if (savedir is not None):
                 save_json(
                     self.get_game_info(to_list=True),
@@ -435,7 +412,6 @@ class SnakeGame:
         # Realize remove head
         for i in range(self.player_num):
             if (self.players[i].remove_head):
-                # assert(not self.players[i].NowDead)
                 self.__remove_head__(i)
 
     def __on_kill__(self, killer: int, killed: int, active_kill: bool):
@@ -506,10 +482,11 @@ class SnakeGame:
                 self.map.SnakePosition[i].pop()
 
     def __on_die__(self, i):
-        valid_poss_set = set(self.map.SnakePosition[i][:self.players[i].total_len])
+        valid_poss_set = self.map.SnakePosition[i][:self.players[i].total_len]
+        valid_poss_set = set([pos for pos in valid_poss_set if self.map.is_valid_pos(pos)])
+        self.map.SnakePosition[i].clear()
         for pos in self.map.vacant_subset(valid_poss_set):
             self.map.SugarPosition.add(pos)
-        self.map.SnakePosition[i].clear()
 
     def __calc_scores__(self):
         for i in range(self.player_num):
@@ -559,6 +536,7 @@ if __name__ ==  '__main__':
 
     # # Inspect generation of props and sugars
     # # input_dir = 'game_info_sample/'
+    # # input_dir = 'game_info_sample_20220402/'
     # # input_dir = r'D:\zzx\Desktop\tmp\game_info_sample_20220404_1'
     # input_dir = 'game_info_test/'
     # m = Map(6)
@@ -583,8 +561,13 @@ if __name__ ==  '__main__':
     # diff_sum[3] -= np.sum(np.sort(np.array(diffs)[1:, 3])[-6:])
     # print(f'diff_sum = {str(diff_sum)}')
 
-    game = SnakeGame([AI0 for _ in range(6)])
-    game.run_till_end(savedir='game_info_test')
+    game = SnakeGame([AI_greedy_0 for _ in range(3)] + [AI0_rand for _ in range(3)])
+    game.run_till_end(savedir='game_info_test', print=True)
+    print(game.map.Time)
+    print([game.players[i].Score for i in range(6)])
+    print([game.players[i].Score_kill for i in range(6)])
+    print([game.players[i].Score_len for i in range(6)])
+    print([game.players[i].Score_time for i in range(6)])
 
 
 # %%
