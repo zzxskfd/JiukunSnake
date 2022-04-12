@@ -111,8 +111,8 @@ class Map:
     def __gen_gauss_poss__(self, num, range:set=None):
         mu_x = (self.Length - 1) / 2
         mu_y = (self.Width - 1) / 2
-        sigma_x = self.Length / 2
-        sigma_y = self.Width / 2
+        sigma_x = 10
+        sigma_y = 10
         # if not enough spaces, return all remaining spaces
         if (range is not None and num >= len(range)):
             poss = range
