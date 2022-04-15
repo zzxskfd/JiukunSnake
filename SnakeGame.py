@@ -102,8 +102,8 @@ class Map:
         poss = self.vacant_subset(poss)
         self.SugarPosition = self.SugarPosition.union(poss)
         # Props
-        for i in [0, 2, 1]:
-            # speed > double > strong
+        for i in range(3):
+            # speed > strong > double
             poss = self.__gen_gauss_poss__(1)
             poss = self.vacant_subset(poss)
             self.PropPosition[i] = self.PropPosition[i].union(poss)
@@ -292,9 +292,9 @@ class SnakeGame:
             acts = self.__ask_for_acts__(game_info)
         self.__move_players__(acts)
         self.__collide__()
-        self.__update_time__()
         self.__get_props__()
         self.__confirm_new_snakes__()
+        self.__update_time__()
         self.__calc_scores__()
         self.map.gen_walls_and_props()
         if (self.__check_all_dead__()):
