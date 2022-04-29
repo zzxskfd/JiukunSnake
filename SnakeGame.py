@@ -9,12 +9,14 @@ from time import sleep
 from colorama import Fore, Style
 from multiprocessing import Pool
 
-from AI0 import AI0, AI0_rand, AI_greedy_0
+from AI import AI0, AI0_rand, AI_greedy_0
 from utils import create_folder, save_json, DIRECTIONS, load_json, key2dir, add_c
 
 # %%
 class Player:
-    def __init__(self, name, num) -> None:
+    def __init__(self, num, name=None) -> None:
+        if (name is None):
+            name = f'Player_{num}'
         self.Name = name
         self.Num = num
         self.LastAct = 'w'
@@ -40,6 +42,10 @@ class Player:
         self.move_len = 0
         self.total_len = 0
         self.remove_head = False
+
+    def load_game_info(self, loadpath):
+        game_info = load_json(loadpath)
+        self.__dict__.update(game_info['gameinfo']['Player'][self.Num])
 
 
 # %%
@@ -73,7 +79,7 @@ class Map:
     
     def gen_walls_and_props(self):
         # Generate walls
-        if (self.Time % 5 == 0 and (self.Time >= 100 or self.Length * self.Width - len(self.WallPosition) > 400)):
+        if (self.Time % 5 == 0 and (self.Time >= 100 or self.Length * self.Width - len(self.WallPosition) - len(self.SugarPosition) > 400)):
             i = self.wall_gen_ind
             for j in range(self.Width):
                 self.WallPosition.add((i, j))
@@ -108,7 +114,7 @@ class Map:
             poss = self.vacant_subset(poss)
             self.PropPosition[i] = self.PropPosition[i].union(poss)
 
-    def __gen_gauss_poss__(self, num, range:set=None):
+    def __gen_gauss_poss__(self, num, range:set=None, max_toss_num=1000):
         mu_x = (self.Length - 1) / 2
         mu_y = (self.Width - 1) / 2
         sigma_x = 10
@@ -168,7 +174,7 @@ class Map:
             for i in range(3):
                 self.PropPosition[i] = set([tuple(pos) for pos in self.PropPosition[i]])
 
-    def print(self, wall=True, sugar=True, prop=True, snake=True):
+    def print(self, wall=True, sugar=True, prop=True, snake=True, legend=True, player_names=None):
         wall_char = 'ww'
         sugar_char = '* '
         prop_chars = ['sp', 'st', 'do']   # speed, strong, double
@@ -209,18 +215,29 @@ class Map:
                 for pos in positions[1:]:
                     board[pos[0]][pos[1]] = snake_body_chars[i]
         board = np.transpose(board)
-        print('\n'.join([''.join(row) for row in board]))
+
+        if (legend):
+            if (player_names is None):
+                player_names = [f'Player_{i}' for i in range(len(self.SnakePosition))]
+            print('  '.join([player_names[i] + ':' + player_colors[i]+'O'+Style.RESET_ALL for i in range(len(self.SnakePosition))]))
+        print('\n'.join(reversed([''.join(row) for row in board])))
         
 
 # %%
 class SnakeGame:
-    def __init__(self, AIs=None) -> None:
-        self.reset(AIs=AIs)
+    def __init__(self, player_num:int=None, AIs:list=None) -> None:
+        self.reset(player_num=player_num, AIs=AIs)
 
-    def reset(self, AIs=None):
-        self.player_num = len(AIs)
+    def reset(self, player_num:int=None, AIs:list=None):
+        assert AIs is not None or player_num is not None
+        if (AIs is not None and player_num is not None):
+            assert player_num == len(AIs)
+        if (player_num is None):
+            self.player_num = len(AIs)
+        else:
+            self.player_num = player_num
         self.AIs = AIs
-        self.players = [Player(f'player_{i}', i) for i in range(self.player_num)]
+        self.players = [Player(i) for i in range(self.player_num)]
         self.map = Map(self.player_num)
         self.map.gen_walls_and_props()
         self.__calc_scores__()
@@ -245,7 +262,17 @@ class SnakeGame:
         res = dict()
         res['gameinfo'] = game_info
         res['tableinfo'] = None
+        if (to_list):
+            save_json(res, 'game_info_tmp.json')
+            res = load_json('game_info_tmp.json')
         return res
+
+    def load_game_info(self, game_info_path):
+        game_info = load_json(game_info_path)
+        self.reset(player_num=len(game_info['gameinfo']['Player']))
+        self.map.load_game_info(game_info_path)
+        for i in range(self.player_num):
+            self.players[i].load_game_info(game_info_path)
 
     # def save_game(self, save_path):
     #     config = deepcopy(self.__dict__)
@@ -260,9 +287,9 @@ class SnakeGame:
         if (cls):
             os.system('cls')
         print(f'Round {self.map.Time}')
-        self.map.print()
+        self.map.print(player_names=[self.players[i].Name for i in range(self.player_num)])
 
-    def run_till_end(self, time_sleep=0, savedir=None, print=True):
+    def run_till_end(self, time_sleep=0.0, savedir=None, print=True):
         # Run a whole game
         if (savedir is not None):
             create_folder(savedir)
@@ -332,6 +359,11 @@ class SnakeGame:
                 assert dir is not None
                 self.map.SnakePosition[i].insert(0, add_c(self.map.SnakePosition[i][0], dir))
                 self.players[i].move_len += 1
+            # Growth of snake
+            use_save_len = min(self.players[i].SaveLength, self.players[i].move_len)
+            self.players[i].SaveLength -= use_save_len
+            for _ in range(self.players[i].move_len - use_save_len):
+                self.map.SnakePosition[i].pop()
         # Set last_Act
         for i in range(self.player_num):
             self.players[i].LastAct = acts[i]
@@ -346,10 +378,11 @@ class SnakeGame:
         is_strong = []
         for i in range(self.player_num):
             positions = self.map.SnakePosition[i]
-            head_len = self.players[i].move_len
+            move_len = self.players[i].move_len
             total_len = self.players[i].total_len
-            head_poss.append(set(positions[:head_len]))
-            body_poss.append(set(positions[head_len:total_len]))
+            # still ok if move_len > total_len
+            head_poss.append(set(positions[:move_len]))
+            body_poss.append(set(positions[move_len:total_len]))
             is_strong.append(self.players[i].Prop['strong'] > 0)
 
         for i in range(self.player_num):
@@ -425,9 +458,10 @@ class SnakeGame:
 
     def __remove_head__(self, player_ind):
         player = self.players[player_ind]
-        head_len = player.move_len
-        self.map.SnakePosition[player_ind] = self.map.SnakePosition[player_ind][head_len:]
-        player.total_len -= head_len
+        move_len = player.move_len
+        self.map.SnakePosition[player_ind] = self.map.SnakePosition[player_ind][move_len:]
+        player.total_len -= move_len
+        player.total_len = max(player.total_len, 0)
         if (player.total_len < 1):
             player.NowDead = True
         # player.head_len = 0
@@ -475,13 +509,10 @@ class SnakeGame:
                 self.__on_die__(i)
                 self.players[i].IsDead = self.players[i].NowDead
                 continue
-            # Growth of snakes
-            use_save_len = min(self.players[i].SaveLength, self.players[i].move_len)
-            self.players[i].SaveLength -= use_save_len
-            for _ in range(self.players[i].move_len - use_save_len):
-                self.map.SnakePosition[i].pop()
 
     def __on_die__(self, i):
+        if (len(self.map.SnakePosition[i]) == 0):
+            return
         valid_poss_set = self.map.SnakePosition[i][:self.players[i].total_len]
         valid_poss_set = set([pos for pos in valid_poss_set if self.map.is_valid_pos(pos)])
         self.map.SnakePosition[i].clear()
@@ -502,8 +533,7 @@ class SnakeGame:
         scores /= 3.5
 
         for i in range(self.player_num):
-            if (not self.players[i].IsDead):
-                self.players[i].Score = scores[i]
+            self.players[i].Score = scores[i]
 
     def __check_all_dead__(self):
         return np.all([player.IsDead for player in self.players])
@@ -519,8 +549,7 @@ if __name__ ==  '__main__':
     pass
     # # Print map from gameinfo received
     # m = Map(6)
-    # # m.load_game_info('game_info_sample/GameInfo_2022-04-03_11-55-55.149419.json')
-    # m.load_game_info('game_info_sample/GameInfo_2022-04-03_11-55-59.513025.json')
+    # m.load_game_info(r'D:\zzx\Desktop\tmp\GameInfo_9096_10.json')
     # m.print()
 
     # # Print walls and props
@@ -532,7 +561,6 @@ if __name__ ==  '__main__':
     #     print(f'Round: {m.Time}')
     #     m.print(wall=True, sugar=False, prop=True, snake=False)
     #     sleep(1.0)
-
 
     # # Inspect generation of props and sugars
     # # input_dir = 'game_info_sample/'
@@ -560,14 +588,40 @@ if __name__ ==  '__main__':
     # diff_sum = np.sum(diffs[1:], axis=0)
     # diff_sum[3] -= np.sum(np.sort(np.array(diffs)[1:, 3])[-6:])
     # print(f'diff_sum = {str(diff_sum)}')
+    
+    # # Print whole game info
+    # # input_dir = r'D:\zzx\Desktop\tmp\game_info_9328'
+    # input_dir = r'D:\zzx\Programming\vsCode\JiukunSnake\game_info_test'
+    # game = SnakeGame(player_num=6)
+    # filelist = sorted(os.listdir(input_dir))
+    # # print(filelist)
+    # for i, file in enumerate(filelist):
+    #     game.load_game_info(os.path.join(input_dir, file))
+    #     game.print()
+    #     sleep(0.5)
 
-    game = SnakeGame([AI_greedy_0 for _ in range(3)] + [AI0_rand for _ in range(3)])
-    game.run_till_end(savedir='game_info_test', print=True)
-    print(game.map.Time)
-    print([game.players[i].Score for i in range(6)])
-    print([game.players[i].Score_kill for i in range(6)])
-    print([game.players[i].Score_len for i in range(6)])
-    print([game.players[i].Score_time for i in range(6)])
+    # # Inspect specific round
+    # game_info_path = r'D:\zzx\Desktop\tmp\game_info_9328\GameInfo_9328_000.json'
+    # game = SnakeGame(player_num=6)
+    # game.load_game_info(game_info_path)
+    # game.print()
+    # print(AI_greedy_0(0, load_json(game_info_path)))
+
+    # Test score
+    scores = []
+    for i in range(1):
+        print('Game', i)
+        game = SnakeGame(AIs=[AI_greedy_0 for _ in range(3)] + [AI0_rand for _ in range(3)])
+        game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.5)
+        print(game.map.Time)
+        print([game.players[i].Score for i in range(6)])
+        print([game.players[i].Score_kill for i in range(6)])
+        print([game.players[i].Score_len for i in range(6)])
+        print([game.players[i].Score_time for i in range(6)])
+        print(np.mean([game.players[i].Score for i in range(3)]))
+        scores.append(np.mean([game.players[i].Score for i in range(3)]))
+    print(scores)
+    print(np.mean(scores))
 
 
 # %%

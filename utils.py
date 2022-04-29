@@ -19,11 +19,22 @@ def create_folder(dir):
     if (not os.path.exists(dir)):
         os.makedirs(dir)
 
+# def os_sorted(filelist):
+#     max_len = max([len(f) for f in filelist])
+#     for i in range(len(filelist)):
+#         name = '.'.join(filelist[i].split('.')[:-1])
+#         sfx = filelist[i].split('.')[-1]
+#         filelist[i] = name + ''.join(['~']*(max_len - len(name))) + '.' + sfx
+#     filelist = sorted(filelist)
+#     for i in range(len(filelist)):
+#         filelist[i] = filelist[i].replace('~', '')
+#     return filelist
+
 # %%
-RIGHT = (0, 1)
-LEFT = (0, -1)
-UP = (-1, 0)
-DOWN = (1, 0)
+RIGHT = (1, 0)
+LEFT = (-1, 0)
+UP = (0, 1)
+DOWN = (0, -1)
 
 DIRECTIONS = [RIGHT, LEFT, UP, DOWN]
 DIRECTIONS_KEY =  ['d', 'a', 'w', 's']

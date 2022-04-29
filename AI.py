@@ -4,6 +4,10 @@ import random
 
 from utils import DIRECTIONS_KEY, key2dir, add_c
 
+def transfer_poss(poss):
+    return [tuple(pos) for pos in poss]
+    # return [(int(pos[0]), int(pos[1])) for pos in poss]
+
 # %% AI example
 def AI0(Num_,GameInfo_):
     #一个最简单的AI
@@ -48,17 +52,17 @@ def AI0(Num_,GameInfo_):
 def AI0_rand(Num_, GameInfo_):
     if(GameInfo_["gameinfo"]["Player"][Num_]["IsDead"]):
         return "d"
-    PositionNow = GameInfo_["gameinfo"]["Map"]["SnakePosition"][Num_][0]
+    PositionNow = tuple(GameInfo_["gameinfo"]["Map"]["SnakePosition"][Num_][0])
 
     PositionMove = None
-    WallPositions  = set(GameInfo_["gameinfo"]["Map"]["WallPosition"])
+    WallPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["WallPosition"]))
     SnakeHitPositions = []
     for i_snake in range(len(GameInfo_["gameinfo"]["Player"])):
         if(GameInfo_["gameinfo"]["Player"][i_snake]["IsDead"]):
             SnakeHitPositions.append(set())
         else:
             # The last element of snake will not hit player
-            SnakeHitPositions.append(set((GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][:-1])))
+            SnakeHitPositions.append(set(transfer_poss(GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake])))
 
     ok_flags = dict([(dk, True) for dk in DIRECTIONS_KEY])
     for dk in ok_flags:
@@ -81,29 +85,35 @@ def AI0_rand(Num_, GameInfo_):
 
 
 # %% Greedy for current round
-def AI_greedy_0(Num_, GameInfo_):
+def AI_greedy_0(Num_, GameInfo_, debug=False):
     player_self = GameInfo_["gameinfo"]["Player"][Num_]
+    if (debug):
+        print([player["IsDead"] for player in GameInfo_["gameinfo"]["Player"]])
     if(player_self["IsDead"]):
         return "d"
 
     speed = player_self["Speed"]
-    PositionHead = GameInfo_["gameinfo"]["Map"]["SnakePosition"][Num_][0]
+    PositionHead = tuple(GameInfo_["gameinfo"]["Map"]["SnakePosition"][Num_][0])
 
-    WallPositions  = set(GameInfo_["gameinfo"]["Map"]["WallPosition"])
-    SugarPositions  = set(GameInfo_["gameinfo"]["Map"]["SugarPosition"])
-    SpeedPositions  = set(GameInfo_["gameinfo"]["Map"]["PropPosition"][0])
-    StrongPositions  = set(GameInfo_["gameinfo"]["Map"]["PropPosition"][1])
-    DoublePositions  = set(GameInfo_["gameinfo"]["Map"]["PropPosition"][2])
+    WallPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["WallPosition"]))
+    SugarPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["SugarPosition"]))
+    SpeedPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["PropPosition"][0]))
+    StrongPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["PropPosition"][1]))
+    DoublePositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["PropPosition"][2]))
     SnakeHitPositions = []
     for i_snake in range(len(GameInfo_["gameinfo"]["Player"])):
         if(GameInfo_["gameinfo"]["Player"][i_snake]["IsDead"]):
             SnakeHitPositions.append(set())
         else:
-            # The last element of snake will not hit player
-            SnakeHitPositions.append(set((GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][:-1])))
+            # The last element of snake will not hit player if SaveLength == 0
+            if (GameInfo_["gameinfo"]["Player"][i_snake]['SaveLength'] == 0):
+                SnakeHitPositions.append(set(transfer_poss(GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][:-1])))
+            else:
+                SnakeHitPositions.append(set(transfer_poss(GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake])))
 
     def get_pos_score(pos):
         if (pos in WallPositions):
+            # print('Hit wall:', pos)
             return -10000
         res = 0
         for i_snake in range(len(GameInfo_["gameinfo"]["Player"])):
@@ -111,6 +121,7 @@ def AI_greedy_0(Num_, GameInfo_):
                 if (i_snake == Num_ and player_self["Prop"]["strong"] > 0):
                     res -= 1000
                 else:
+                    # print('Hit enemy body:', i_snake)
                     res -= 20000
         if (res < 0):
             return res
@@ -144,11 +155,13 @@ def AI_greedy_0(Num_, GameInfo_):
                     poss_cur.remove(next_pos)
     
     iter_acts('', PositionHead, 0)
-    print('Num =', Num_)
-    print('act_values =', act_values)
+    # print('Num =', Num_)
+    if (debug):
+        print('act_values =', act_values)
     score_best = max(act_values.values())
     ok_keys = [dk for dk in act_values if act_values[dk] == score_best]
-    print('ok_keys =', ok_keys)
+    if (debug):
+        print('ok_keys =', ok_keys)
     if (len(ok_keys) == 0):
         return 'd'
     else:
