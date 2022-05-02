@@ -638,13 +638,22 @@ if __name__ ==  '__main__':
     # game.print()
     # print(AI_greedy_0(0, load_json(game_info_path)))
 
+    # # Test AI time usage
+    # game_info = load_json(r'D:\zzx\Programming\vsCode\JiukunSnake\game_info_test\game_info_round_  0.json')
+    # time_start = time()
+    # AI_greedy_0(0, game_info, debug=False)
+    # print(time() - time_start)
+
     # Test score
     scores = []
-    for i in range(400):
+    scores_kill = []
+    scores_len = []
+    scores_time = []
+    for i in range(1):
         print('Game', i)
         time_elapsed = 0
         time_start = time()
-        game = SnakeGame(AIs=[AI_greedy_0 for _ in range(3)] + [AI0_rand for _ in range(3)])
+        game = SnakeGame(AIs=[AI_greedy_0 for _ in range(1)] + [AI0_rand for _ in range(5)])
         # game = SnakeGame(AIs=[AI0_rand for _ in range(6)])
         # game = SnakeGame(AIs=[AI_greedy_0 for _ in range(6)])
         # game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.0)
@@ -658,10 +667,17 @@ if __name__ ==  '__main__':
         print([game.players[i].Score_kill for i in range(6)])
         print([game.players[i].Score_len for i in range(6)])
         print([game.players[i].Score_time for i in range(6)])
-        print(np.mean([game.players[i].Score for i in range(3)]))
+        print(np.mean([game.players[i].Score for i in range(1)]))
         scores.append([game.players[i].Score for i in range(6)])
+        scores_kill.append([game.players[i].Score_kill for i in range(6)])
+        scores_len.append([game.players[i].Score_len for i in range(6)])
+        scores_time.append([game.players[i].Score_time for i in range(6)])
     print(np.mean(scores, axis=0))
-    print(np.mean(np.mean(scores, axis=0)[:3]))
+    print('Average Score_kill =', np.mean(scores_kill, axis=0))
+    print('Average Score_len =', np.mean(scores_len, axis=0))
+    print('Average Score_time =', np.mean(scores_time, axis=0))
+    # print(np.mean(np.mean(scores, axis=0)[:3]))
+
 
 
 # %%

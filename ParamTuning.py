@@ -46,7 +46,7 @@ while generation_ind < 100:
             'score_sugar': trial.suggest_float('score_sugar', 1.0, 10.0),
             'score_sugar_alpha': trial.suggest_float('score_sugar_alpha', 1.0, 20.0),
             'score_sugar_beta': trial.suggest_float('score_sugar_beta', 0.0, 5.0),
-            'score_sugar_gamma': trial.suggest_float('score_sugar_gamma', 0.0, 10.0),
+            'score_sugar_gamma': trial.suggest_float('score_sugar_gamma', 0.0, 4.0),
             'score_speed': trial.suggest_float('score_speed', 1, 10),
             'score_speed_alpha': trial.suggest_float('score_speed_alpha', 1.0, 20.0),
             'score_speed_beta': trial.suggest_float('score_speed_beta', 0.0, 20.0),
@@ -59,13 +59,17 @@ while generation_ind < 100:
             'score_double_alpha': trial.suggest_float('score_double_alpha', 1.0, 20.0),
             'score_double_beta': trial.suggest_float('score_double_beta', 0.0, 20.0),
             'score_double_gamma': trial.suggest_float('score_double_gamma', 0.0, 2.0),
-            'score_empty_grid': trial.suggest_categorical('score_empty_grid', [0, 0.1, -0.1]),
+            # 'score_empty_grid': trial.suggest_categorical('score_empty_grid', [0, 0.1, -0.1]),
+            'score_empty_grid': trial.suggest_categorical('score_empty_grid', [0.0]),
             'score_center_alpha_x': trial.suggest_float('score_center_alpha_x', -10.0, 10.0),
             'score_center_alpha_y': trial.suggest_float('score_center_alpha_y', -10.0, 10.0),
             'score_enemy_stronger': trial.suggest_float('score_enemy_stronger', -50.0, 0.0),
             'score_enemy_weaker': trial.suggest_float('score_enemy_weaker', 0.0, 50.0),
+            'score_enemy_both_strong': trial.suggest_float('score_enemy_both_strong', -20.0, 0.0),
             'score_enemy_stronger_dist': trial.suggest_float('score_enemy_stronger_dist', -50.0, 0.0),
             'score_enemy_weaker_dist': trial.suggest_float('score_enemy_weaker_dist', 0.0, 50.0),
+            'score_enemy_both_strong_dist': trial.suggest_float('score_enemy_both_strong_dist', -10.0, 0.0),
+            'score_discount_rate': trial.suggest_float('score_discount_rate', 0.0, 1.0),
         }
 
         def run_one_game():

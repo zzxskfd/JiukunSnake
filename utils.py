@@ -50,8 +50,38 @@ def key2dir(key: str):
         return RIGHT
     raise ValueError(f'Error: invalid key: {key}')
 
+def dir2key(dir: tuple):
+    if (dir == UP):
+        return 'w'
+    if (dir == LEFT):
+        return 'a'
+    if (dir == DOWN):
+        return 's'
+    if (dir == RIGHT):
+        return 'd'
+    raise ValueError(f'Error: invalid dir: {dir}')
+
+REVERSE_KEY_DICT = {
+    'w': 's',
+    's': 'w',
+    'a': 'd',
+    'd': 'a',
+}
+def r_key(key: str):
+    return REVERSE_KEY_DICT[key]
+
 def add_c(x: tuple, y: tuple):
     return (x[0]+y[0], x[1]+y[1])
 
+def minus_c(x: tuple, y: tuple):
+    return (x[0]-y[0], x[1]-y[1])
+
 def ham_dist(x: tuple, y: tuple):
     return abs(x[0] - y[0]) + abs(x[1] - y[1])
+
+def get_reverse_path_keys(poss: list):
+    assert(len(poss) > 1)
+    res = ''
+    for i in range(len(poss) - 1):
+        res += dir2key(minus_c(poss[i+1], poss[i]))
+    return res
