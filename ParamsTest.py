@@ -10,7 +10,7 @@ n_trials = 100
 AI = AI_greedy_0
 param_savepath_format = 'D:/zzx/Programming/vsCode/JiukunSnake/AI_greedy_0_params/params_{}.json'
 # %% Test tuned params
-inds_test = [0, 1, 2, 4, 5, 6]
+inds_test = [0, 1, 2, 5, 6, 7]
 rival_paramss = [load_json(param_savepath_format.format(ind)) for ind in inds_test]
 
 def AI_tmp_0(Num_, GameInfo_):
@@ -47,7 +47,7 @@ print('Average Score_time =', np.mean(scores_time, axis=0))
 
 # %%
 game = SnakeGame(AIs=[AI_tmp_0, AI_tmp_1, AI_tmp_2, AI_tmp_3, AI_tmp_4, AI_tmp_5])
-game.run_till_end(print=True, time_sleep=0.5)
+game.run_till_end(print=True, time_sleep=0.5, savedir='game_info_test')
 print([game.players[i].Score_kill for i in range(6)])
 print([game.players[i].Score_len for i in range(6)])
 print([game.players[i].Score_time for i in range(6)])
