@@ -1,0 +1,10 @@
+{
+    "score_hit_wall": -10000,
+    "score_hit_self_strong": -1000,
+    "score_hit_others_body": -30000,
+    "score_sugar": 1,
+    "score_speed": 2,
+    "score_strong": 5,
+    "score_double": 2,
+    "score_empty_grid": 0.1
+}

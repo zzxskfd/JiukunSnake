@@ -53,3 +53,5 @@ def key2dir(key: str):
 def add_c(x: tuple, y: tuple):
     return (x[0]+y[0], x[1]+y[1])
 
+def ham_dist(x: tuple, y: tuple):
+    return abs(x[0] - y[0]) + abs(x[1] - y[1])

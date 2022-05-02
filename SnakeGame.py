@@ -4,10 +4,9 @@ import gc
 import os
 import random
 from scipy.stats import rankdata
-from copy import deepcopy
-from time import sleep
+from copy import copy, deepcopy
+from time import sleep, time
 from colorama import Fore, Style
-from multiprocessing import Pool
 
 from AI import AI0, AI0_rand, AI_greedy_0
 from utils import create_folder, save_json, DIRECTIONS, load_json, key2dir, add_c
@@ -94,44 +93,81 @@ class Map:
             # Initial num: 200 sugar, 50/50/50 props
             sugar_num = 200
             prop_num = 50
-            poss = self.__gen_gauss_poss__(sugar_num + 3 * prop_num, range=self.vacant_subset())
+            poss = self.__gen_uniform_poss__(sugar_num + 3 * prop_num, range_=self.vacant_subset())
             for i in range(3):
                 self.PropPosition[i] = set(poss[i*prop_num:(i+1)*prop_num])
             self.SugarPosition = set(poss[3*prop_num:])
-        if (self.Time == 1):
-            # When time == 1, generate extra 10 speed props
-            poss = self.__gen_gauss_poss__(10, range=self.vacant_subset())
-            self.PropPosition[0] = self.PropPosition[0].union(poss)
-        # Sugar
-        sugar_num = random.choice([1, 1, 1, 1, 2, 2, 3, 3, 4])
-        poss = self.__gen_gauss_poss__(sugar_num)
-        poss = self.vacant_subset(poss)
-        self.SugarPosition = self.SugarPosition.union(poss)
-        # Props
-        for i in range(3):
-            # speed > strong > double
-            poss = self.__gen_gauss_poss__(1)
-            poss = self.vacant_subset(poss)
-            self.PropPosition[i] = self.PropPosition[i].union(poss)
+        else:
+            n_sugar = 200 + self.Time
+            r_sugar = 100 + min(self.Time * 10, 200)
+            num = max(0, n_sugar - len(self.SugarPosition))
+            poss = self.__gen_gauss_poss__(num=num, max_toss_num=r_sugar)
+            self.SugarPosition = self.SugarPosition.union(poss)
 
-    def __gen_gauss_poss__(self, num, range:set=None, max_toss_num=1000):
+            # speed, strong, double
+            n_props = [60 + int(self.Time * 0.2), 40, 50]
+            r_props = [10 + min(self.Time * 10, 100)] * 3
+            for i in range(3):
+                # speed > strong > double
+                num = max(0, n_props[i] - len(self.PropPosition[i]))
+                poss = self.__gen_gauss_poss__(num=num, max_toss_num=r_props[i])
+                self.PropPosition[i] = self.PropPosition[i].union(poss)
+
+        # Old version
+        # if (self.Time == 1):
+        #     # When time == 1, generate extra 10 speed props
+        #     poss = self.__gen_gauss_poss__(10, range=self.vacant_subset())
+        #     self.PropPosition[0] = self.PropPosition[0].union(poss)
+        # # Sugar
+        # sugar_num = random.choice([1, 1, 1, 1, 2, 2, 3, 3, 4])
+        # poss = self.__gen_gauss_poss__(sugar_num)
+        # poss = self.vacant_subset(poss)
+        # self.SugarPosition = self.SugarPosition.union(poss)
+        # # Props
+        # for i in range(3):
+        #     # speed > strong > double
+        #     poss = self.__gen_gauss_poss__(1)
+        #     poss = self.vacant_subset(poss)
+        #     self.PropPosition[i] = self.PropPosition[i].union(poss)
+
+    def __gen_gauss_poss__(self, num:int, range_:set=None, max_toss_num=2000)->list:
         mu_x = (self.Length - 1) / 2
         mu_y = (self.Width - 1) / 2
         sigma_x = 10
         sigma_y = 10
         # if not enough spaces, return all remaining spaces
-        if (range is not None and num >= len(range)):
-            poss = range
-            poss = list(poss)
+        if (range_ is not None and num >= len(range_)):
+            poss = list(range_)
             random.shuffle(poss)
             return poss
-        poss = set()
-        while (len(poss) < num):
+        poss = set()    # note: use set to avoid equal samples
+        for _ in range(max_toss_num):
+            if (len(poss) >= num):
+                break
             pos = (int(np.round(random.gauss(mu_x, sigma_x))),
                     int(np.round(random.gauss(mu_y, sigma_y))))
-            while (not self.is_valid_pos(pos) or (range is not None and not pos in range)):
+            while (not self.is_valid_pos(pos) or (range_ is not None and not pos in range_)):
                 pos = (int(np.round(random.gauss(mu_x, sigma_x))),
                     int(np.round(random.gauss(mu_y, sigma_y))))
+            poss.add(pos)
+        poss = list(poss)
+        random.shuffle(poss)
+        return poss
+
+    def __gen_uniform_poss__(self, num, range_:set=None, max_toss_num=2000):
+        # if not enough spaces, return all remaining spaces
+        if (range_ is not None and num >= len(range_)):
+            poss = list(range_)
+            random.shuffle(poss)
+            return poss
+        poss = set()    # note: use set to avoid equal samples
+        for _ in range(max_toss_num):
+            if (len(poss) >= num):
+                break
+            # note: assuming the outside is wall, do not use in an empty map
+            pos = (random.randrange(1, self.Length-1), random.randrange(1, self.Width-1))
+            while (range_ is not None and not pos in range_):
+                pos = (random.randrange(1, self.Length-1), random.randrange(1, self.Width-1))
             poss.add(pos)
         poss = list(poss)
         random.shuffle(poss)
@@ -246,12 +282,13 @@ class SnakeGame:
         game_info = dict()
         game_info['Player'] = []
         for p in self.players:
-            tmp = deepcopy(p.__dict__)
+            tmp = copy(p.__dict__)
+            # tmp = deepcopy(p.__dict__)
             tmp.pop('move_len')
             tmp.pop('total_len')
             tmp.pop('remove_head')
             game_info['Player'].append(tmp)
-        game_info['Map'] = deepcopy(self.map.__dict__)
+        game_info['Map'] = copy(self.map.__dict__)
         game_info['Map'].pop('all_grids')
         if (to_list):
             game_info['Map']['WallPosition'] = list(game_info['Map']['WallPosition'])
@@ -273,15 +310,6 @@ class SnakeGame:
         self.map.load_game_info(game_info_path)
         for i in range(self.player_num):
             self.players[i].load_game_info(game_info_path)
-
-    # def save_game(self, save_path):
-    #     config = deepcopy(self.__dict__)
-    #     config['AIs'] = None
-    #     save_json(config, save_path)
-    
-    # def load_game(self, load_path):
-    #     self.reset()
-    #     json = load_json(load_path)
 
     def print(self, cls=True):
         if (cls):
@@ -308,15 +336,17 @@ class SnakeGame:
             print_and_save()
             sleep(time_sleep)
         print_and_save()
-    
+
     def move_one_round(self, AIs=None, acts=None) -> bool:
-        _ = gc.collect()
         # Return true if game is not ended
         if (acts is None):
             if (AIs is None):
                 AIs = self.AIs
-            game_info = self.get_game_info()
+            game_info = self.get_game_info(to_list=False)
+            # start_time = time()
             acts = self.__ask_for_acts__(game_info)
+            # global time_elapsed
+            # time_elapsed += (time() - start_time)
         self.__move_players__(acts)
         self.__collide__()
         self.__get_props__()
@@ -532,6 +562,7 @@ class SnakeGame:
         scores += rankdata([self.players[i].Score_len for i in range(self.player_num)])
         scores /= 3.5
 
+        self.map.Score = list(scores)
         for i in range(self.player_num):
             self.players[i].Score = scores[i]
 
@@ -609,19 +640,28 @@ if __name__ ==  '__main__':
 
     # Test score
     scores = []
-    for i in range(1):
+    for i in range(400):
         print('Game', i)
+        time_elapsed = 0
+        time_start = time()
         game = SnakeGame(AIs=[AI_greedy_0 for _ in range(3)] + [AI0_rand for _ in range(3)])
-        game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.5)
+        # game = SnakeGame(AIs=[AI0_rand for _ in range(6)])
+        # game = SnakeGame(AIs=[AI_greedy_0 for _ in range(6)])
+        # game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.0)
+        game.run_till_end(print=False)
+        time_total = time() - time_start
+        print('Total time:', time_total)
+        print('Part time:', time_elapsed)
+        print(time_elapsed / time_total)
         print(game.map.Time)
         print([game.players[i].Score for i in range(6)])
         print([game.players[i].Score_kill for i in range(6)])
         print([game.players[i].Score_len for i in range(6)])
         print([game.players[i].Score_time for i in range(6)])
         print(np.mean([game.players[i].Score for i in range(3)]))
-        scores.append(np.mean([game.players[i].Score for i in range(3)]))
-    print(scores)
-    print(np.mean(scores))
+        scores.append([game.players[i].Score for i in range(6)])
+    print(np.mean(scores, axis=0))
+    print(np.mean(np.mean(scores, axis=0)[:3]))
 
 
 # %%

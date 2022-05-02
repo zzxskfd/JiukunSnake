@@ -1,0 +1,21 @@
+{
+    "score_hit_wall": -140551,
+    "score_hit_self_strong": -152092,
+    "score_hit_others_body": -141940,
+    "score_sugar": 3.428405711354614,
+    "score_sugar_alpha": 17.452963088822784,
+    "score_sugar_beta": 1.9675560718813216,
+    "score_sugar_gamma": 1.17415850484105,
+    "score_speed": 1.0334493821639512,
+    "score_speed_alpha": 10.801040340317003,
+    "score_speed_beta": 15.623009872033215,
+    "score_speed_gamma": 0.8486356589558746,
+    "score_strong": 5.000546154373818,
+    "score_strong_alpha": 19.06739852474578,
+    "score_strong_beta": 4.002565964044924,
+    "score_strong_gamma": 0.540682488293897,
+    "score_double": 3.3261497359378023,
+    "score_empty_grid": 0,
+    "score_center_alpha_x": -4.579022652273613,
+    "score_center_alpha_y": -6.633585548731021
+}

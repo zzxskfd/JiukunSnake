@@ -1,8 +1,10 @@
 # %%
 import numpy as np
 import random
+from scipy.stats import rankdata
+from copy import copy
 
-from utils import DIRECTIONS_KEY, key2dir, add_c
+from utils import DIRECTIONS, DIRECTIONS_KEY, ham_dist, key2dir, add_c
 
 def transfer_poss(poss):
     return [tuple(pos) for pos in poss]
@@ -85,58 +87,196 @@ def AI0_rand(Num_, GameInfo_):
 
 
 # %% Greedy for current round
-def AI_greedy_0(Num_, GameInfo_, debug=False):
-    player_self = GameInfo_["gameinfo"]["Player"][Num_]
-    if (debug):
-        print([player["IsDead"] for player in GameInfo_["gameinfo"]["Player"]])
+def AI_greedy_0(Num_, GameInfo_, params_=None, debug=False):
+    # Default params
+    params = {
+        'score_hit_wall': -10000,
+        'score_hit_self_strong': -20000,
+        'score_hit_others_body': -30000,
+        'score_sugar': 1,
+        'score_sugar_alpha': 1.0,   # >= 1
+        'score_sugar_beta': 0.0,    # >= 0
+        'score_sugar_gamma': 0.0,   # >= 0
+        'score_speed': 2,
+        'score_speed_alpha': 1.0,   # >= 1
+        'score_speed_beta': 0.0,    # >= 0
+        'score_speed_gamma': 0.0,   # >= 0
+        'score_strong': 5,
+        'score_strong_alpha': 1.0,   # >= 1
+        'score_strong_beta': 0.0,    # >= 0
+        'score_strong_gamma': 0.0,   # >= 0
+        'score_double': 2,
+        'score_double_alpha': 1.0,   # >= 1
+        'score_double_beta': 0.0,    # >= 0
+        'score_double_gamma': 0.0,   # >= 0
+        'score_empty_grid': 0.1,
+        'score_center_alpha_x': 0.0,    # if < 0, center is encouraged
+        'score_center_alpha_y': 0.0,    # if < 0, center is encouraged
+        'score_enemy_stronger': -0.0,   # should be negative
+        'score_enemy_weaker': 0.0,      # should be positive
+        'score_enemy_stronger_dist': -0.0,  # should be negative
+        'score_enemy_weaker_dist': 0.0,     # should be positive
+    }
+    if (params_ is not None):
+        params.update(params_)
+
+    players = GameInfo_["gameinfo"]["Player"]
+    game_map = GameInfo_["gameinfo"]["Map"]
+    player_self = players[Num_]
     if(player_self["IsDead"]):
         return "d"
 
+    player_num = len(players)
+    map_length = 55
+    map_width = 40
     speed = player_self["Speed"]
-    PositionHead = tuple(GameInfo_["gameinfo"]["Map"]["SnakePosition"][Num_][0])
+    is_strong = player_self["Prop"]["strong"] > 0
+    is_double = player_self["Prop"]["double"] > 0
+    rank_len = rankdata([players[i]["Score_len"] for i in range(player_num)])[Num_]
+    rank_kill = rankdata([players[i]["Score_kill"] for i in range(player_num)])[Num_]
+    rank_time = rankdata([players[i]["Score_time"] for i in range(player_num)])[Num_]
 
-    WallPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["WallPosition"]))
-    SugarPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["SugarPosition"]))
-    SpeedPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["PropPosition"][0]))
-    StrongPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["PropPosition"][1]))
-    DoublePositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["PropPosition"][2]))
+    PositionHead = tuple(game_map["SnakePosition"][Num_][0])
+    WallPositions = set(transfer_poss(game_map["WallPosition"]))
+    SugarPositions = set(transfer_poss(game_map["SugarPosition"]))
+    SpeedPositions = set(transfer_poss(game_map["PropPosition"][0]))
+    StrongPositions = set(transfer_poss(game_map["PropPosition"][1]))
+    DoublePositions = set(transfer_poss(game_map["PropPosition"][2]))
     SnakeHitPositions = []
-    for i_snake in range(len(GameInfo_["gameinfo"]["Player"])):
-        if(GameInfo_["gameinfo"]["Player"][i_snake]["IsDead"]):
+    # Valid snake bodies
+    for i_snake in range(player_num):
+        if(players[i_snake]["IsDead"]):
             SnakeHitPositions.append(set())
         else:
             # The last element of snake will not hit player if SaveLength == 0
-            if (GameInfo_["gameinfo"]["Player"][i_snake]['SaveLength'] == 0):
-                SnakeHitPositions.append(set(transfer_poss(GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][:-1])))
+            if (players[i_snake]["SaveLength"] == 0):
+                SnakeHitPositions.append(set(transfer_poss(game_map["SnakePosition"][i_snake][:-1])))
             else:
-                SnakeHitPositions.append(set(transfer_poss(GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake])))
+                SnakeHitPositions.append(set(transfer_poss(game_map["SnakePosition"][i_snake])))
+    # Walls and snake bodies
+    wall_and_snake_hit_poss = WallPositions.union(*SnakeHitPositions)
+    # Strong or weak enemies
+    next_max_lens = []
+    for i_snake in range(player_num):
+        next_max_lens.append(len(game_map["SnakePosition"][i_snake]) + min(players[i_snake]["Speed"], players[i_snake]["SaveLength"]))
+    power_levels = []
+    for i_snake in range(player_num):
+        if (i_snake == Num_):
+            power_levels.append('self')
+            continue
+        if (players[i_snake]["IsDead"]):
+            power_levels.append('dead')
+            continue
+        if (not is_strong):
+            if (players[i_snake]["Prop"]["strong"] > 0):
+                power_levels.append('stronger')
+            elif (next_max_lens[i_snake] > next_max_lens[Num_]):
+                power_levels.append('stronger')
+            elif (next_max_lens[i_snake] == next_max_lens[Num_]):
+                power_levels.append('equal')
+            else:
+                power_levels.append('weaker')
+        else:
+            if (players[i_snake]["Prop"]["strong"] > 0):
+                power_levels.append('equal')
+            else:
+                power_levels.append('weaker')
+    # Score map considering enemies
+    score_map_enemy = dict()
+    for i_snake in range(player_num):
+        if (power_levels[i_snake] == 'stronger'):
+            level_tmp = params['score_enemy_stronger']
+        # elif (power_levels[i_snake] == 'equal'):
+        #     level_tmp = 0
+        elif (power_levels[i_snake] == 'weaker'):
+            level_tmp = params['score_enemy_weaker']
+        else:
+            continue
 
+        poss_cur = {tuple(game_map["SnakePosition"][i_snake][0])}
+        searched = copy(wall_and_snake_hit_poss)
+        for step in range(players[i_snake]["Speed"]):
+            if (len(poss_cur) == 0):
+                break
+            searched = searched | poss_cur
+            poss_nxt = set()
+            for pos in poss_cur:
+                # Calc score here
+                if (step > 0):
+                    if (pos in score_map_enemy):
+                        score_map_enemy[pos] += level_tmp / step
+                    else:
+                        score_map_enemy[pos] = level_tmp / step
+                for dir in DIRECTIONS:
+                    pos_tmp = add_c(pos, dir)
+                    if (pos_tmp not in searched):
+                        poss_nxt.add(pos_tmp)
+            poss_cur = poss_nxt
+
+    # Basic scores that doesnt depend on moving path
+    pos_score_cache = dict()
     def get_pos_score(pos):
+        if (pos in pos_score_cache):
+            return pos_score_cache[pos]
         if (pos in WallPositions):
             # print('Hit wall:', pos)
-            return -10000
+            return params['score_hit_wall']
         res = 0
-        for i_snake in range(len(GameInfo_["gameinfo"]["Player"])):
+        for i_snake in range(len(players)):
             if (pos in SnakeHitPositions[i_snake]):
-                if (i_snake == Num_ and player_self["Prop"]["strong"] > 0):
-                    res -= 1000
+                if (i_snake == Num_ and is_strong):
+                    res += params['score_hit_self_strong']
+                elif (i_snake == Num_):
+                    res += params['score_hit_wall']
                 else:
-                    # print('Hit enemy body:', i_snake)
-                    res -= 20000
+                    res += params['score_hit_others_body']
+
         if (res < 0):
             return res
         if (pos in SugarPositions):
-            if (player_self["Prop"]["double"] > 0):
-                return 2
-            else:
-                return 1
-        if (pos in SpeedPositions):
-            return max(2, (4 - speed) ** 2)
-        if (pos in StrongPositions):
-            return 5
-        if (pos in DoublePositions):
-            return 2
-        return 0.1
+            alpha = params['score_sugar_alpha']
+            beta = params['score_sugar_beta']
+            gamma = params['score_sugar_gamma']
+            score_tmp = params['score_sugar'] * max(1, alpha - beta * player_self["Score_len"] - gamma * rank_len)
+            if (is_double):
+                score_tmp *= 2
+            res += score_tmp
+        elif (pos in SpeedPositions):
+            alpha = params['score_speed_alpha']
+            beta = params['score_speed_beta']
+            gamma = params['score_speed_gamma']
+            res += params['score_speed'] * max(1, alpha - beta * speed - gamma * player_self["Prop"]["speed"])
+        elif (pos in StrongPositions):
+            alpha = params['score_strong_alpha']
+            beta = params['score_strong_beta']
+            gamma = params['score_strong_gamma']
+            res += params['score_strong'] * max(1, alpha - beta * is_strong - gamma * player_self["Prop"]["strong"])
+        elif (pos in DoublePositions):
+            alpha = params['score_double_alpha']
+            beta = params['score_double_beta']
+            gamma = params['score_double_gamma']
+            res += params['score_double'] * max(1, alpha - beta * is_double - gamma * player_self["Prop"]["double"])
+        else:
+            res += params['score_empty_grid']
+        # Positions closer to center is better
+        res += abs(pos[0] - (map_length-1)/2) * params['score_center_alpha_x']
+        res += abs(pos[1] - (map_width-1)/2) * params['score_center_alpha_y']
+        # score_map_enemy
+        if (pos in score_map_enemy):
+            res += score_map_enemy[pos]
+        # According to distance of enemy
+        for i_snake in range(player_num):
+            if (power_levels[i_snake] == 'stronger'):
+                dist_tmp = ham_dist(pos, tuple(game_map["SnakePosition"][i_snake][0]))
+                if (dist_tmp > 0):
+                    res += params['score_enemy_stronger_dist'] / dist_tmp
+            elif (power_levels[i_snake] == 'weaker'):
+                dist_tmp = ham_dist(pos, tuple(game_map["SnakePosition"][i_snake][0]))
+                if (dist_tmp > 0):
+                    res += params['score_enemy_weaker_dist'] / dist_tmp
+
+        pos_score_cache[pos] = res        
+        return res
 
     act_values = dict()
     poss_cur = set([PositionHead])
@@ -146,7 +286,8 @@ def AI_greedy_0(Num_, GameInfo_, debug=False):
             act_values[act_cur] = score_sum_cur
         else:
             score_sum_cur = 0
-        if (len(act_cur) < min(speed, 4) and score_sum_cur > -100):
+        # if (len(act_cur) < min(speed, 6) and score_sum_cur > -100):
+        if (len(act_cur) < 6 and score_sum_cur > -10000):
             for dk in DIRECTIONS_KEY:
                 next_pos = add_c(pos_cur, key2dir(dk))
                 if (next_pos not in poss_cur):
@@ -162,9 +303,118 @@ def AI_greedy_0(Num_, GameInfo_, debug=False):
     ok_keys = [dk for dk in act_values if act_values[dk] == score_best]
     if (debug):
         print('ok_keys =', ok_keys)
+    res_keys = random.choice(ok_keys)
+    # print(res_keys)
+    return res_keys[:speed]
+
+
+
+
+
+
+
+
+
+
+
+def AI_greedy_wyg(Num_,GameInfo_):
+    player_self = GameInfo_["gameinfo"]["Player"][Num_]
+    if(player_self["IsDead"]):
+        return "d"
+
+    speed = player_self["Speed"]
+    PositionHead = tuple(GameInfo_["gameinfo"]["Map"]["SnakePosition"][Num_][0])
+
+    WallPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["WallPosition"]))
+    SugarPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["SugarPosition"]))
+    SpeedPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["PropPosition"][0]))
+    StrongPositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["PropPosition"][1]))
+    DoublePositions  = set(transfer_poss(GameInfo_["gameinfo"]["Map"]["PropPosition"][2]))
+    print(WallPositions)
+    SnakeHitPositions = []
+    for i_snake in range(len(GameInfo_["gameinfo"]["Player"])):
+        if(GameInfo_["gameinfo"]["Player"][i_snake]["IsDead"]):
+            SnakeHitPositions.append(set())
+        else:
+            # The last element of snake will not hit player
+            SnakeHitPositions.append(set(transfer_poss(GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake])))
+
+    def get_pos_score(pos):
+        res = 0
+        if (pos in WallPositions):
+            res -= 10000
+        for i_snake in range(len(GameInfo_["gameinfo"]["Player"])):
+            if(GameInfo_["gameinfo"]["Player"][i_snake]["IsDead"]):
+                continue
+            else:
+                if (player_self["Prop"]["strong"] > 0 and GameInfo_["gameinfo"]["Player"][i_snake]["Prop"]["strong"] == 0) or len(GameInfo_["gameinfo"]["Map"]["SnakePosition"][Num_]) > len(GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake]):
+                    res -= (abs(pos[0] - GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][0][0]) * 0.01 + abs(pos[1] - GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][0][1]) * 0.01)
+                    if abs(pos[0] - GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][0][0]) + abs(pos[1] - GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][0][1]) == 1:
+                        res += 10
+                else:
+                    res += (abs(pos[0] - GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][0][0]) * 0.01 + abs(pos[1] - GameInfo_["gameinfo"]["Map"]["SnakePosition"][i_snake][0][1]) * 0.01)
+                if (pos in SnakeHitPositions[i_snake]):
+                    if (i_snake == Num_ and player_self["Prop"]["strong"] > 0):
+                        res -= 1000
+                    else:
+                        res -= 20000
+        if (pos in SugarPositions):
+            if (player_self["Prop"]["double"] > 0):
+                res += 2
+            else:
+                res += 1
+        if (pos in SpeedPositions):
+            res += max(2, (5 - speed)) ** 2
+        if (pos in StrongPositions):
+            res += 5
+        if (pos in DoublePositions):
+            res += 2
+        res -= (abs(pos[0] - 27) * 0.1 + abs(pos[1] - 19.5) * 0.1)
+        return res
+
+    act_values = dict()
+    poss_cur = set([PositionHead])
+    def iter_acts(act_cur, pos_cur, score_sum, values):
+        if (len(act_cur) > 0):
+            score_sum_cur = score_sum + get_pos_score(pos_cur)
+            values[act_cur] = score_sum_cur
+        else:
+            score_sum_cur = 0
+        if (len(act_cur) < min(speed, 5) and score_sum_cur > -100):
+            for dk in DIRECTIONS_KEY:
+                next_pos = add_c(pos_cur, key2dir(dk))
+                if (next_pos not in poss_cur):
+                    poss_cur.add(next_pos)
+                    iter_acts(act_cur+dk, next_pos, score_sum_cur, values)
+                    poss_cur.remove(next_pos)
+    iter_acts('', PositionHead, 0, act_values)
+    HitPositions = WallPositions
+    for i_snake in range(len(GameInfo_["gameinfo"]["Player"])):
+        HitPositions = HitPositions | SnakeHitPositions[i_snake]
+    act_pos = PositionHead
+    def dfs(pos):
+        poss_cur.add(pos)
+        for dk in DIRECTIONS_KEY:
+            next_pos = add_c(pos, key2dir(dk))
+            if (next_pos not in (HitPositions | poss_cur)) and (abs(next_pos[0] - act_pos[0]) + abs(next_pos[1] - act_pos[1]) < 5):
+                dfs(next_pos)
+    for dk in act_values:
+        next_act_values = dict()
+        act_pos = PositionHead
+        poss_cur = set([act_pos])
+        for i in range(len(dk)):
+            act_pos = add_c(act_pos, key2dir(dk[i]))
+            poss_cur.add(act_pos)
+        iter_acts('', act_pos, 0, next_act_values)
+        act_values[dk] += 0.99 * max(next_act_values.values())
+        dfs(act_pos)
+        act_values[dk] += (len(poss_cur) - len(dk))
+    score_best = max(act_values.values())
+    ok_keys = [dk for dk in act_values if act_values[dk] == score_best]
     if (len(ok_keys) == 0):
         return 'd'
     else:
+        print(random.choice(ok_keys))
         return random.choice(ok_keys)
-    
 
+# %%
