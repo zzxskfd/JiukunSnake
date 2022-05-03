@@ -286,7 +286,7 @@ def AI_greedy_0(Num_, GameInfo_, params_=None, debug=False):
         return res
 
     # max_search_step = 12
-    max_search_step = 6
+    max_search_step = 10
     hit_score_threshold = -10000
     act_values = dict()
     act_values_real = dict()        # For cases speed > length

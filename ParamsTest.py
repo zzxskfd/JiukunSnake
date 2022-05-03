@@ -10,7 +10,7 @@ n_trials = 100
 AI = AI_greedy_0
 param_savepath_format = 'D:/zzx/Programming/vsCode/JiukunSnake/AI_greedy_0_params/params_{}.json'
 # %% Test tuned params
-inds_test = [0, 1, 2, 5, 6, 7]
+inds_test = [0, 4, 5, 6, 7, 8]
 rival_paramss = [load_json(param_savepath_format.format(ind)) for ind in inds_test]
 
 def AI_tmp_0(Num_, GameInfo_):

@@ -1,7 +1,7 @@
 {
-    "score_hit_wall": -459,
-    "score_hit_self_strong": -293,
-    "score_hit_others_body": -632,
+    "score_hit_wall": -100000,
+    "score_hit_self_strong": -150000,
+    "score_hit_others_body": -200000,
     "score_sugar": 6,
     "score_speed": 7,
     "score_strong": 10,
