@@ -336,7 +336,7 @@ def AI_greedy_0(Num_, GameInfo_, params_=None, debug=False):
         dir = key2dir(dk)
         pos_tmp = add_c(PositionHead, dir)
         if (pos_tmp in SnakeHitPositions[Num_]):
-            body_ind = game_map["SnakePosition"][Num_].index(pos_tmp)
+            body_ind = game_map["SnakePosition"][Num_].index([pos_tmp[0], pos_tmp[1]])
             if (body_ind > extra_tol_len):
                 extra_tol_len = body_ind
                 best_dk = dk
@@ -350,21 +350,28 @@ def AI_greedy_0(Num_, GameInfo_, params_=None, debug=False):
     # max_speed_sum: speed sum in (self_strong_time + 1) rounds
     valid_speed_time = min(self_speed_time, self_strong_time + 1)
     max_speed_sum = speed * valid_speed_time + (self_strong_time + 1 - valid_speed_time)
+    if (debug):
+        print('self_length_total - extra_tol_len =', self_length_total - extra_tol_len)
+        print('speed =', speed)
+        print('two_speed_sum =', two_speed_sum)
+        print('max_speed_sum =', max_speed_sum)
     # Three steps escape
+    def hit_self_keys(first_key, num_step):
+        res = first_key
+        while (len(res) < num_step):
+            res += r_key(res[-1])
+        return res
+
     if (speed >= self_length_total - extra_tol_len and players[Num_]["SaveLength"] == 0):
         # SaveLength must be 0! otherwise would be complicated
         return best_dk + get_reverse_path_keys(game_map["SnakePosition"][Num_][extra_tol_len:])
+    elif (speed >= self_length_total - extra_tol_len):
+        return hit_self_keys(best_dk, players[Num_]["SaveLength"])
     elif (two_speed_sum >= self_length_total - extra_tol_len):
         len_to_destroy = self_length_total - extra_tol_len - speed  # should be >= 1
-        keys_escape = best_dk
-        while (len(keys_escape) < len_to_destroy):
-            keys_escape += r_key(keys_escape[-1])
-        return keys_escape
+        return hit_self_keys(best_dk, len_to_destroy)
     elif (max_speed_sum >= self_length_total - extra_tol_len):
-        keys_escape = best_dk
-        while (len(keys_escape) < speed):
-            keys_escape += r_key(keys_escape[-1])
-        return keys_escape
+        return hit_self_keys(best_dk, speed)
     else:
         # cannot escape
         return res_keys
