@@ -39,27 +39,23 @@ DOWN = (0, -1)
 DIRECTIONS = [RIGHT, LEFT, UP, DOWN]
 DIRECTIONS_KEY =  ['d', 'a', 'w', 's']
 
+KEY2DIR_DICT = {
+    'w': UP,
+    'a': LEFT,
+    's': DOWN,
+    'd': RIGHT,
+}
 def key2dir(key: str):
-    if (key == 'w'):
-        return UP
-    if (key == 'a'):
-        return LEFT
-    if (key == 's'):
-        return DOWN
-    if (key == 'd'):
-        return RIGHT
-    raise ValueError(f'Error: invalid key: {key}')
+    return KEY2DIR_DICT[key]
 
+DIR2KEY_DICT = {
+    UP: 'w',
+    LEFT: 'a',
+    DOWN: 's',
+    RIGHT: 'd',
+}
 def dir2key(dir: tuple):
-    if (dir == UP):
-        return 'w'
-    if (dir == LEFT):
-        return 'a'
-    if (dir == DOWN):
-        return 's'
-    if (dir == RIGHT):
-        return 'd'
-    raise ValueError(f'Error: invalid dir: {dir}')
+    return DIR2KEY_DICT[dir]
 
 REVERSE_KEY_DICT = {
     'w': 's',

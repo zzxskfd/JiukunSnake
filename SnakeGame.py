@@ -8,7 +8,7 @@ from copy import copy, deepcopy
 from time import sleep, time
 from colorama import Fore, Style
 
-from AI import AI0, AI0_rand, AI_greedy_0
+from AI import AI0, AI_greedy_1, AI0_rand, AI_greedy_0, AI_wyg
 from utils import create_folder, save_json, DIRECTIONS, load_json, key2dir, add_c
 
 # %%
@@ -407,6 +407,7 @@ class SnakeGame:
         body_poss = []
         is_strong = []
         for i in range(self.player_num):
+            self.players[i].KillList = []
             positions = self.map.SnakePosition[i]
             move_len = self.players[i].move_len
             total_len = self.players[i].total_len
@@ -436,12 +437,16 @@ class SnakeGame:
                 if (collide_h2h):
                     if (collide_h2b):
                         if (is_strong[i]):
-                            self.players[i].remove_head = True
+                            # [20220509] If i is strong and j is weak, head of i will not be removed
+                            if (is_strong[j]):
+                                self.players[i].remove_head = True
                         else:
                             self.__on_kill__(j, i, True)
                     if (collide_b2h):
                         if (is_strong[j]):
-                            self.players[j].remove_head = True
+                            # [20220509] If j is strong and i is weak, head of j will not be removed
+                            if (is_strong[i]):
+                                self.players[j].remove_head = True
                         else:
                             self.__on_kill__(i, j, True)
                     if (not collide_h2b and not collide_b2h):
@@ -631,12 +636,13 @@ if __name__ ==  '__main__':
     #     game.print()
     #     sleep(0.5)
 
-    # # Inspect specific round
-    # game_info_path = r'D:\zzx\Desktop\tmp\game_info_9328\GameInfo_9328_000.json'
-    # game = SnakeGame(player_num=6)
-    # game.load_game_info(game_info_path)
+    # Inspect specific round
+    game_info_path = r'D:\zzx\Desktop\tmp\game_info_9328\GameInfo_9328_000.json'
+    game = SnakeGame(player_num=6)
+    game.load_game_info(game_info_path)
     # game.print()
-    # print(AI_greedy_0(0, load_json(game_info_path)))
+    # print(AI_greedy_1(0, load_json(game_info_path), debug=True))
+    print(AI_wyg(0, load_json(game_info_path), debug=True))
 
     # # Test AI time usage
     # game_info = load_json(r'D:\zzx\Programming\vsCode\JiukunSnake\game_info_test\game_info_round_  0.json')
@@ -644,39 +650,39 @@ if __name__ ==  '__main__':
     # AI_greedy_0(0, game_info, debug=False)
     # print(time() - time_start)
 
-    # Test score
-    scores = []
-    scores_kill = []
-    scores_len = []
-    scores_time = []
-    for i in range(1):
-        print('Game', i)
-        time_elapsed = 0
-        time_start = time()
-        game = SnakeGame(AIs=[AI_greedy_0 for _ in range(1)] + [AI0_rand for _ in range(5)])
-        # game = SnakeGame(AIs=[AI0_rand for _ in range(6)])
-        # game = SnakeGame(AIs=[AI_greedy_0 for _ in range(6)])
-        # game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.0)
-        game.run_till_end(print=False)
-        time_total = time() - time_start
-        print('Total time:', time_total)
-        print('Part time:', time_elapsed)
-        print(time_elapsed / time_total)
-        print(game.map.Time)
-        print([game.players[i].Score for i in range(6)])
-        print([game.players[i].Score_kill for i in range(6)])
-        print([game.players[i].Score_len for i in range(6)])
-        print([game.players[i].Score_time for i in range(6)])
-        print(np.mean([game.players[i].Score for i in range(1)]))
-        scores.append([game.players[i].Score for i in range(6)])
-        scores_kill.append([game.players[i].Score_kill for i in range(6)])
-        scores_len.append([game.players[i].Score_len for i in range(6)])
-        scores_time.append([game.players[i].Score_time for i in range(6)])
-    print(np.mean(scores, axis=0))
-    print('Average Score_kill =', np.mean(scores_kill, axis=0))
-    print('Average Score_len =', np.mean(scores_len, axis=0))
-    print('Average Score_time =', np.mean(scores_time, axis=0))
-    # print(np.mean(np.mean(scores, axis=0)[:3]))
+    # # Test score
+    # scores = []
+    # scores_kill = []
+    # scores_len = []
+    # scores_time = []
+    # for i in range(1):
+    #     print('Game', i)
+    #     time_elapsed = 0
+    #     time_start = time()
+    #     game = SnakeGame(AIs=[AI_greedy_0 for _ in range(1)] + [AI0_rand for _ in range(5)])
+    #     # game = SnakeGame(AIs=[AI0_rand for _ in range(6)])
+    #     # game = SnakeGame(AIs=[AI_greedy_0 for _ in range(6)])
+    #     # game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.0)
+    #     game.run_till_end(print=False)
+    #     time_total = time() - time_start
+    #     print('Total time:', time_total)
+    #     print('Part time:', time_elapsed)
+    #     print(time_elapsed / time_total)
+    #     print(game.map.Time)
+    #     print([game.players[i].Score for i in range(6)])
+    #     print([game.players[i].Score_kill for i in range(6)])
+    #     print([game.players[i].Score_len for i in range(6)])
+    #     print([game.players[i].Score_time for i in range(6)])
+    #     print(np.mean([game.players[i].Score for i in range(1)]))
+    #     scores.append([game.players[i].Score for i in range(6)])
+    #     scores_kill.append([game.players[i].Score_kill for i in range(6)])
+    #     scores_len.append([game.players[i].Score_len for i in range(6)])
+    #     scores_time.append([game.players[i].Score_time for i in range(6)])
+    # print(np.mean(scores, axis=0))
+    # print('Average Score_kill =', np.mean(scores_kill, axis=0))
+    # print('Average Score_len =', np.mean(scores_len, axis=0))
+    # print('Average Score_time =', np.mean(scores_time, axis=0))
+    # # print(np.mean(np.mean(scores, axis=0)[:3]))
 
 
 
