@@ -8,8 +8,8 @@ from copy import copy, deepcopy
 from time import sleep, time
 from colorama import Fore, Style
 
-from AI import AI0, AI_greedy_1, AI0_rand, AI_greedy_0, AI_wyg
-from utils import create_folder, save_json, DIRECTIONS, load_json, key2dir, add_c
+from AI import AI0, AI_greedy_1, AI0_rand, AI_greedy_0, AI_new_tree_search
+from utils import create_folder, save_json, DIRECTIONS, load_json, key2dir, add_c, search_path_keys
 
 # %%
 class Player:
@@ -637,12 +637,13 @@ if __name__ ==  '__main__':
     #     sleep(0.5)
 
     # Inspect specific round
-    game_info_path = r'D:\zzx\Desktop\tmp\game_info_9328\GameInfo_9328_000.json'
+    game_info_path = r'D:\zzx\Desktop\tmp\game_info_9328\GameInfo_9328_040.json'
     game = SnakeGame(player_num=6)
     game.load_game_info(game_info_path)
-    # game.print()
+    game.print()
     # print(AI_greedy_1(0, load_json(game_info_path), debug=True))
-    print(AI_wyg(0, load_json(game_info_path), debug=True))
+    # print(AI_wyg(0, load_json(game_info_path), debug=True))
+    print(search_path_keys((20, 10), (32, 34), game.map.WallPosition))
 
     # # Test AI time usage
     # game_info = load_json(r'D:\zzx\Programming\vsCode\JiukunSnake\game_info_test\game_info_round_  0.json')

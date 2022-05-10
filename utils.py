@@ -1,4 +1,5 @@
 # %%
+from copy import copy
 import os
 import numpy as np
 import json
@@ -81,3 +82,31 @@ def get_reverse_path_keys(poss: list):
     for i in range(len(poss) - 1):
         res += dir2key(minus_c(poss[i+1], poss[i]))
     return res
+
+# %%
+def is_valid_pos(pos, board_length=55, board_width=40):
+    return (0 <= pos[0] <= board_length - 1) and (0 <= pos[1] <= board_width - 1)
+
+
+def search_path_keys(pos_stt:tuple, pos_dst:tuple, poss_wall:set, poss_danger_rate=dict(), epsilon=1e-6):
+    # Please ensure max(poss_subscore) * epsilon < 1
+    # A-star algorithm
+    if (pos_stt == pos_dst):
+        return ''
+    searched = set()
+    pos_infos = {pos_stt: (0, ham_dist(pos_stt, pos_dst), '')}
+    while (len(pos_infos) > 0):
+        pos_cur = min(pos_infos, key=lambda k:pos_infos[k][1])
+        if (pos_cur == pos_dst):
+            return pos_infos[pos_cur][2]
+        searched.add(pos_cur)
+        info_cur = pos_infos.pop(pos_cur)
+        for dir in DIRECTIONS:
+            pos_tmp = add_c(pos_cur, dir)
+            if (pos_tmp not in searched and pos_tmp not in poss_wall and is_valid_pos(pos_tmp)):
+                if (pos_tmp in poss_danger_rate):
+                    subscore = poss_danger_rate[pos_tmp] * epsilon
+                else:
+                    subscore = 0.0
+                pos_infos[pos_tmp] = (info_cur[0]+1, info_cur[0]+1+ham_dist(pos_cur, pos_dst)+subscore, info_cur[2]+dir2key(dir))
+    return None

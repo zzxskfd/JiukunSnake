@@ -5,7 +5,7 @@ from time import time
 from scipy.stats import rankdata
 from copy import copy
 
-from utils import DIRECTIONS, DIRECTIONS_KEY, get_reverse_path_keys, ham_dist, key2dir, add_c, r_key
+from utils import DIRECTIONS, DIRECTIONS_KEY, dir2key, get_reverse_path_keys, ham_dist, key2dir, add_c, r_key, search_path_keys
 
 def transfer_poss(poss):
     return [tuple(pos) for pos in poss]
@@ -850,8 +850,10 @@ def AI_greedy_1(Num_, GameInfo_, params_=None, debug=False):
                 power_levels.append('both_strong')
             else:
                 power_levels.append('weaker')
+
     # Score map considering enemies
     score_map_enemy = dict()
+    danger_map_for_kill = dict()
     for i_snake in range(player_num):
         if (power_levels[i_snake] == 'stronger'):
             level_tmp = params['score_enemy_stronger']
@@ -876,11 +878,89 @@ def AI_greedy_1(Num_, GameInfo_, params_=None, debug=False):
                         score_map_enemy[pos] += level_tmp / step
                     else:
                         score_map_enemy[pos] = level_tmp / step
+                    # subscore_map_for_kill is used in manual killer process
+                    if (players[i_snake]["Prop"]["strong"] > 0):
+                        if (pos in danger_map_for_kill):
+                            danger_map_for_kill[pos] += 1 / step
+                        else:
+                            danger_map_for_kill[pos] = 1 / step
                 for dir in DIRECTIONS:
                     pos_tmp = add_c(pos, dir)
                     if (pos_tmp not in searched):
                         poss_nxt.add(pos_tmp)
             poss_cur = poss_nxt
+
+    # [20220510] Manual killer process
+    def get_manual_kill_keys():
+        # Note: didn't considered whether self length is enough
+        if (not is_strong):
+            return None
+        kill_plans = []
+        for i_snake in range(player_num):
+            if (i_snake == Num_ or players[i_snake]["IsDead"] or players[i_snake]["Prop"]["strong"] > 0):
+                continue
+            # If target speed > length > 4, ignore. (Leave it to normal path search)
+            if (players[i_snake]["Speed"] > next_max_lens[i_snake] > 4):
+                continue
+            # If too far, ignore
+            target_head_pos = tuple(game_map["SnakePosition"][i_snake][0])
+            if (ham_dist(PositionHead, target_head_pos) > speed + 1):
+                continue
+            # Consider directions the target can move to
+            snake_dks = []
+            safe_dks = []
+            for dir in DIRECTIONS:
+                pos_tmp = add_c(target_head_pos, dir)
+                if (pos_tmp in WallPositions):
+                    continue
+                elif (pos_tmp in SnakeHitPositions):
+                    snake_dks.append(dir2key(dir))
+                else:
+                    safe_dks.append(dir2key(dir))
+            if (len(safe_dks) == 0):
+                dks_to_cover = snake_dks
+            else:
+                dks_to_cover = safe_dks
+            # If only one direction to cover
+            if (len(dks_to_cover) == 1):
+                target_pos = add_c(target_head_pos, key2dir(dks_to_cover[0]))
+                keys_to_kill = search_path_keys(PositionHead, target_pos, WallPositions, poss_danger_rate=danger_map_for_kill)
+                # If already at this position
+                if (keys_to_kill == ''):
+                    kill_plans.append(r_key(dks_to_cover[0]))
+                # If reachable, record
+                if (keys_to_kill is not None and len(keys_to_kill) <= speed):
+                    kill_plans.append(keys_to_kill)
+                continue
+            # Else get the path towards head
+            keys_to_kill = search_path_keys(PositionHead, target_head_pos, WallPositions, poss_danger_rate=danger_map_for_kill)
+            # If not reachable, ignore
+            if (keys_to_kill is None):
+                continue
+            key_tmp = r_key(keys_to_kill[-1])
+            if (key_tmp in dks_to_cover):
+                dks_to_cover.remove(key_tmp)
+            for dk in dks_to_cover:
+                keys_to_kill += dk + r_key(dk)
+            keys_to_kill = keys_to_kill[:-1]
+            # If reachable, record
+            if (keys_to_kill is not None and len(keys_to_kill) <= speed):
+                kill_plans.append(keys_to_kill)
+        # Calculate scores for kill plans (can be modified)
+        kill_plans_score = dict()
+        for keys in kill_plans:
+            # Danger rate (>=0)
+            danger_rate = 0.0
+            pos_tmp = PositionHead
+            for k in keys:
+                pos_tmp = add_c(pos_tmp, key2dir(k))
+                if (pos_tmp in danger_map_for_kill):
+                    danger_rate += danger_map_for_kill[pos_tmp]
+            # Head part ratio
+            head_part_ratio = min(len(keys) / next_max_lens[Num_], 1.0)
+            # Score
+            kill_plans_score[keys] = -danger_rate * head_part_ratio
+        return max(kill_plans_score, key=kill_plans_score.get)
 
     # Basic scores that doesnt depend on moving path
     pos_score_cache = dict()
