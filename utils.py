@@ -76,6 +76,9 @@ def minus_c(x: tuple, y: tuple):
 def ham_dist(x: tuple, y: tuple):
     return abs(x[0] - y[0]) + abs(x[1] - y[1])
 
+def L_inf_dist(x: tuple, y: tuple):
+    return max(abs(x[0] - y[0]), abs(x[1] - y[1]))
+
 def get_reverse_path_keys(poss: list):
     assert(len(poss) > 1)
     res = ''
@@ -94,6 +97,7 @@ def search_path_keys(pos_stt:tuple, pos_dst:tuple, poss_wall:set, poss_danger_ra
     if (pos_stt == pos_dst):
         return ''
     searched = set()
+    # info: (known dist, known_estimated dist, keys)
     pos_infos = {pos_stt: (0, ham_dist(pos_stt, pos_dst), '')}
     while (len(pos_infos) > 0):
         pos_cur = min(pos_infos, key=lambda k:pos_infos[k][1])
@@ -110,3 +114,36 @@ def search_path_keys(pos_stt:tuple, pos_dst:tuple, poss_wall:set, poss_danger_ra
                     subscore = 0.0
                 pos_infos[pos_tmp] = (info_cur[0]+1, info_cur[0]+1+ham_dist(pos_cur, pos_dst)+subscore, info_cur[2]+dir2key(dir))
     return None
+
+def search_local_cover_path(pos_center:tuple, dks_to_cover:list, pos_stt:tuple, poss_wall:set, poss_searched:set):
+    # print(f'pos_center = {pos_center}')
+    # print(f'dks_to_cover = {dks_to_cover}')
+    # print(f'pos_stt = {pos_stt}')
+    # print(f'poss_searched = {poss_searched}')
+    assert(pos_stt in poss_searched)
+    assert(L_inf_dist(pos_center, pos_stt) <= 1)
+    assert(len(dks_to_cover) > 0)
+    poss_to_cover = [add_c(pos_center, key2dir(dk)) for dk in dks_to_cover]
+    def is_valid_tmp(pos):
+        return is_valid_pos(pos) and L_inf_dist(pos_center, pos) <= 1
+    best_act = None
+    best_score = 0
+    poss_cur = poss_searched
+    def iter_acts(act_cur, pos_cur, score_sum, best_score, best_act):
+        # Calculate current score (number of positions covered)
+        score_sum_cur = score_sum + (1 if pos_cur in poss_to_cover else 0)
+        if (score_sum_cur > best_score or (score_sum_cur == best_score and len(act_cur) < len(best_act))):
+            best_score = score_sum_cur
+            best_act = act_cur
+        # Iterate all directions
+        for dk in DIRECTIONS_KEY:
+            next_pos = add_c(pos_cur, key2dir(dk))
+            if (is_valid_tmp(next_pos) and next_pos not in poss_cur and next_pos not in poss_wall):
+                poss_cur.add(next_pos)
+                best_score, best_act = iter_acts(act_cur+dk, next_pos, score_sum_cur, best_score, best_act)
+                poss_cur.remove(next_pos)
+        return best_score, best_act
+
+    best_score, best_act = iter_acts('', pos_stt, 0, best_score, best_act)
+    print(f'best_act = {best_act}')
+    return best_act
