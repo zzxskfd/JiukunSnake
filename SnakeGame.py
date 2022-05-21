@@ -9,7 +9,7 @@ from time import sleep, time
 from colorama import Fore, Style
 
 # from AI import AI0, AI_greedy_1, AI0_rand, AI_greedy_0, AI_new_tree_search
-from AI import AI_greedy_0
+from AI import AI_20220520, AI_reversing
 from utils import create_folder, save_json, DIRECTIONS, load_json, key2dir, add_c, search_path_keys
 
 # %%
@@ -19,8 +19,8 @@ class Player:
             name = f'Player_{num}'
         self.Name = name
         self.Num = num
-        self.LastAct = 'w'
-        # self.Act = 'w'
+        self.Act = 'w'
+        # self.LastAct = 'w'
         self.IsDead = False
         self.NowDead = False
         self.Speed = 1
@@ -278,6 +278,8 @@ class SnakeGame:
         self.map = Map(self.player_num)
         self.map.gen_walls_and_props()
         self.__calc_scores__()
+        # [20220521]
+        self.game_info_history = []
 
     def get_game_info(self, to_list=True):
         game_info = dict()
@@ -317,6 +319,10 @@ class SnakeGame:
         if (cls):
             os.system('cls')
         print(f'Round {self.map.Time}')
+        print('Speed:', [player.Speed for player in self.players])
+        print('Prop speed:', [player.Prop['speed'] for player in self.players])
+        print('Prop strong:', [player.Prop['strong'] for player in self.players])
+        print('Prop double:', [player.Prop['double'] for player in self.players])
         self.map.print(player_names=[self.players[i].Name for i in range(self.player_num)])
 
     def run_till_end(self, time_sleep=0.0, savedir=None, print=True):
@@ -344,18 +350,24 @@ class SnakeGame:
         if (acts is None):
             if (AIs is None):
                 AIs = self.AIs
-            game_info = self.get_game_info(to_list=False)
+            game_info = self.get_game_info(to_list=True)
+            self.game_info_history.append(game_info)
             # start_time = time()
-            acts = self.__ask_for_acts__(game_info)
+            acts = self.__ask_for_acts__()
             # global time_elapsed
             # time_elapsed += (time() - start_time)
+        self.__update_time__()
         self.__move_players__(acts)
         self.__collide__()
         self.__get_props__()
-        self.__confirm_new_snakes__()
-        self.__update_time__()
         self.__calc_scores__()
+        self.__confirm_new_snakes__()
         self.map.gen_walls_and_props()
+
+        # for i, AI in enumerate(AIs):
+        #     if (AI.__name__ == 'AI_reversing'):
+        #         self.players[i].Prop['strong'] = 1000
+
         if (self.__check_all_dead__()):
             return False
         if (self.map.time_over()):
@@ -363,10 +375,11 @@ class SnakeGame:
             return False
         return True
     
-    def __ask_for_acts__(self, game_info):
+    def __ask_for_acts__(self):
         acts = []
         for i, AI in enumerate(self.AIs):
-            acts.append(AI(i, game_info))
+            acts.append(AI(i, self.game_info_history))
+            # acts.append(AI(i, game_info))
         # with Pool(processes=8) as pool:
         #     acts = pool.starmap(get_act, list(range(self.player_num)))
         return acts
@@ -375,7 +388,7 @@ class SnakeGame:
         # if act is None, use last act
         for i, act in enumerate(acts):
             if (act is None):
-                act = self.players[i].LastAct
+                act = self.players[i].Act
         for i in range(self.player_num):
             # Ignore previously dead snakes
             if (self.players[i].IsDead):
@@ -400,13 +413,12 @@ class SnakeGame:
                 self.map.SnakePosition[i].pop()
         # Set last_Act
         for i in range(self.player_num):
-            self.players[i].LastAct = acts[i]
+            self.players[i].Act = acts[i]
     
     def __collide__(self):
         # # Initialize now_dead
         # for i in range(self.player_num):
         #     self.players[i].now_dead = self.players[i].is_dead
-
         head_poss = []
         body_poss = []
         is_strong = []
@@ -627,37 +639,42 @@ if __name__ ==  '__main__':
     #     game.print()
     #     sleep(0.5)
 
-    # # Inspect specific round
-    # # game_info_path = r'D:\zzx\Desktop\tmp\game_info_9328\GameInfo_9328_040.json'
-    # game_info_path = r'D:\zzx\Programming\vsCode\JiukunSnake\game_info_test\game_info_round_ 30.json'
-    # game = SnakeGame(player_num=6)
-    # game.load_game_info(game_info_path)
-    # game.print()
-    # # print(AI_greedy_1(0, load_json(game_info_path), debug=True))
-    # # print(AI_wyg(0, load_json(game_info_path), debug=True))
-    # # print(search_path_keys((20, 10), (32, 34), game.map.WallPosition))
+# %% Inspect specific round
+# if __name__ ==  '__main__':
+#     # Inspect specific round
+#     # game_info_path = r'D:\zzx\Desktop\tmp\game_info_9328\GameInfo_9328_040.json'
+#     game_info_path = r'D:\zzx\Programming\vsCode\JiukunSnake\game_info_test\game_info_round_ 40.json'
+#     game = SnakeGame(player_num=6)
+#     game.load_game_info(game_info_path)
+#     game.print()
+#     # print(AI_greedy_1(0, load_json(game_info_path), debug=True))
+#     # print(AI_wyg(0, load_json(game_info_path), debug=True))
+#     # print(search_path_keys((20, 10), (32, 34), game.map.WallPosition))
 
-    # # Test AI time usage
-    # game_info = load_json(r'D:\zzx\Programming\vsCode\JiukunSnake\game_info_test\game_info_round_  0.json')
-    # time_start = time()
-    # AI_greedy_0(0, game_info, debug=False)
-    # print(time() - time_start)
+#     # # Test AI time usage
+#     # game_info = load_json(r'D:\zzx\Programming\vsCode\JiukunSnake\game_info_test\game_info_round_  0.json')
+#     # time_start = time()
+#     # AI_greedy_0(0, game_info, debug=False)
+#     # print(time() - time_start)
 
-    # Test score
-    random.seed(0)
+# %% # Test score
+if __name__ ==  '__main__':
+    random.seed(6000)
     scores = []
     scores_kill = []
     scores_len = []
     scores_time = []
-    for i in range(100):
+    for i in range(1):
+        # random.seed(1000 * (i+1))
         print('Game', i)
         time_elapsed = 0
         time_start = time()
         # game = SnakeGame(AIs=[AI_greedy_0 for _ in range(1)] + [AI0_rand for _ in range(5)])
         # game = SnakeGame(AIs=[AI0_rand for _ in range(6)])
-        game = SnakeGame(AIs=[AI_greedy_0 for _ in range(6)])
-        # game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.0)
-        game.run_till_end(print=False)
+        game = SnakeGame(AIs=[AI_20220520 for _ in range(6)])
+        # game = SnakeGame(AIs=[AI_20220520 for _ in range(3)] + [AI_reversing for _ in range(3)])
+        game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.5)
+        # game.run_till_end(savedir='game_info_test', print=True)
         time_total = time() - time_start
         print('Total time:', time_total)
         print('Part time:', time_elapsed)
@@ -676,7 +693,7 @@ if __name__ ==  '__main__':
     print('Average Score_kill =', np.mean(scores_kill, axis=0))
     print('Average Score_len =', np.mean(scores_len, axis=0))
     print('Average Score_time =', np.mean(scores_time, axis=0))
-    # print(np.mean(np.mean(scores, axis=0)[:3]))
+    print(np.mean(np.mean(scores, axis=0)[:3]))
 
 
 

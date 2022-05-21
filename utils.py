@@ -115,6 +115,7 @@ def search_path_keys(pos_stt:tuple, pos_dst:tuple, poss_wall:set, poss_danger_ra
                 pos_infos[pos_tmp] = (info_cur[0]+1, info_cur[0]+1+ham_dist(pos_cur, pos_dst)+subscore, info_cur[2]+dir2key(dir))
     return None
 
+
 def search_local_cover_path(pos_center:tuple, dks_to_cover:list, pos_stt:tuple, poss_wall:set, poss_searched:set):
     # print(f'pos_center = {pos_center}')
     # print(f'dks_to_cover = {dks_to_cover}')
@@ -145,5 +146,28 @@ def search_local_cover_path(pos_center:tuple, dks_to_cover:list, pos_stt:tuple, 
         return best_score, best_act
 
     best_score, best_act = iter_acts('', pos_stt, 0, best_score, best_act)
-    print(f'best_act = {best_act}')
+    # print(f'best_act = {best_act}')
     return best_act
+
+
+# [20220521]
+def search_path_keys_multi_target(pos_stt:tuple, poss_dst:set, poss_wall:set, max_dist:int):
+    # BFS
+    searched = set()
+    to_search = {pos_stt: ''}   # pos -> keys
+    step = 0
+    while (len(to_search) > 0 and step <= max_dist):
+        to_search_next = dict()
+        for pos, keys in to_search.items():
+            if (pos in poss_dst):
+                return keys
+            searched.add(pos)
+            for dir in DIRECTIONS:
+                pos_tmp = add_c(pos, dir)
+                if (pos_tmp not in searched and pos_tmp not in poss_wall):
+                    to_search_next[pos_tmp] = keys + dir2key(dir)
+        # del to_search
+        to_search = to_search_next
+        step += 1
+    return None
+
