@@ -9,7 +9,7 @@ from time import sleep, time
 from colorama import Fore, Style
 
 # from AI import AI0, AI_greedy_1, AI0_rand, AI_greedy_0, AI_new_tree_search
-from AI import AI_20220520, AI_reversing
+from AI import AI_20220520, AI_20220520_early, AI_reversing
 from utils import create_folder, save_json, DIRECTIONS, load_json, key2dir, add_c, search_path_keys
 
 # %%
@@ -350,16 +350,16 @@ class SnakeGame:
         if (acts is None):
             if (AIs is None):
                 AIs = self.AIs
-            game_info = self.get_game_info(to_list=True)
+            game_info = self.get_game_info(to_list=False)
             self.game_info_history.append(game_info)
             # start_time = time()
             acts = self.__ask_for_acts__()
             # global time_elapsed
             # time_elapsed += (time() - start_time)
-        self.__update_time__()
         self.__move_players__(acts)
         self.__collide__()
         self.__get_props__()
+        self.__update_time__()
         self.__calc_scores__()
         self.__confirm_new_snakes__()
         self.map.gen_walls_and_props()
@@ -664,17 +664,17 @@ if __name__ ==  '__main__':
     scores_kill = []
     scores_len = []
     scores_time = []
-    for i in range(1):
+    for i in range(400):
         # random.seed(1000 * (i+1))
         print('Game', i)
         time_elapsed = 0
         time_start = time()
         # game = SnakeGame(AIs=[AI_greedy_0 for _ in range(1)] + [AI0_rand for _ in range(5)])
         # game = SnakeGame(AIs=[AI0_rand for _ in range(6)])
-        game = SnakeGame(AIs=[AI_20220520 for _ in range(6)])
-        # game = SnakeGame(AIs=[AI_20220520 for _ in range(3)] + [AI_reversing for _ in range(3)])
-        game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.5)
-        # game.run_till_end(savedir='game_info_test', print=True)
+        # game = SnakeGame(AIs=[AI_20220520 for _ in range(6)])
+        game = SnakeGame(AIs=[AI_20220520 for _ in range(3)] + [AI_20220520_early for _ in range(3)])
+        # game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.5)
+        game.run_till_end(print=False)
         time_total = time() - time_start
         print('Total time:', time_total)
         print('Part time:', time_elapsed)
@@ -684,7 +684,7 @@ if __name__ ==  '__main__':
         print([game.players[i].Score_kill for i in range(6)])
         print([game.players[i].Score_len for i in range(6)])
         print([game.players[i].Score_time for i in range(6)])
-        print(np.mean([game.players[i].Score for i in range(1)]))
+        print(np.mean([game.players[i].Score for i in range(3)]))
         scores.append([game.players[i].Score for i in range(6)])
         scores_kill.append([game.players[i].Score_kill for i in range(6)])
         scores_len.append([game.players[i].Score_len for i in range(6)])
