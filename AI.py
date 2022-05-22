@@ -286,14 +286,21 @@ def AI_20220520(Num_, GameInfoList_, params_=None, debug=False):
                 pos_tmp = add_c(pos_tmp, key2dir(k))
                 if (pos_tmp in danger_map_for_kill):
                     danger_rate += danger_map_for_kill[pos_tmp]
-            # Head part ratio
-            head_part_ratio = min(len(keys) / next_max_lens[Num_], 1.0)
+            # # Head part ratio
+            # head_part_ratio = min(len(keys) / next_max_lens[Num_], 1.0)
             # Score
-            kill_plans_score[keys] = -danger_rate * head_part_ratio
-        return max(kill_plans_score, key=kill_plans_score.get)
-    
+            # kill_plans_score[keys] = -danger_rate * head_part_ratio
+            kill_plans_score[keys] = -len(keys) / next_max_lens[Num_] if danger_rate > 0 else 0.0
+        res = max(kill_plans_score, key=kill_plans_score.get)
+        if (len(res) <= 6):
+            return None
+        print(f'Round {game_map["Time"]}, Num_ = {Num_}, kill_keys = {res}, kill_plans_score[res] = {kill_plans_score[res]}')
+        if (kill_plans_score[res] <= -0.999999):
+            return None
+        return res
+
     kill_keys = get_manual_kill_keys()
-    if kill_keys is not None and len(kill_keys) > 6:
+    if kill_keys is not None:
         return kill_keys
 
     # [20220520] Detect reversing pattern and hit (not 100% kill)
@@ -428,8 +435,8 @@ def AI_20220520(Num_, GameInfoList_, params_=None, debug=False):
     if (hit_path_keys is not None):
         return hit_path_keys
 
-    if (len(PredictedPathPositions) > 0):
-        print(f'Round {game_map["Time"]}, Num_ = {Num_}, PredictedPathPositions = {PredictedPathPositions}')
+    # if (len(PredictedPathPositions) > 0):
+    #     print(f'Round {game_map["Time"]}, Num_ = {Num_}, PredictedPathPositions = {PredictedPathPositions}')
 
     # Basic scores that doesnt depend on moving path
     pos_score_cache = dict()
@@ -571,6 +578,8 @@ def AI_20220520(Num_, GameInfoList_, params_=None, debug=False):
                                        + (1-params['score_discount_rate']) * act_values[act_cur[:real_move_len]]
             if (real_move_len > next_max_lens[Num_]):
                 act_values_real[act_cur] -= act_values[act_cur[:real_move_len - next_max_lens[Num_]]]
+            # next_len = len(game_map["SnakePosition"][i_snake]) + min(len(act_cur), player_self["SaveLength"])
+            # act_values_real[act_cur] += max((next_len - len(act_cur)) / next_len, 0) * params['score_body']
         else:
             score_sum_cur = 0
         if (len(act_cur) < max_search_step and score_sum_cur > hit_score_threshold):

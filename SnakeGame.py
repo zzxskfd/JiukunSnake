@@ -659,13 +659,13 @@ if __name__ ==  '__main__':
 
 # %% # Test score
 if __name__ ==  '__main__':
-    random.seed(6000)
+    # random.seed(6000)
     scores = []
     scores_kill = []
     scores_len = []
     scores_time = []
     for i in range(400):
-        # random.seed(1000 * (i+1))
+        random.seed(1000 * (i+1))
         print('Game', i)
         time_elapsed = 0
         time_start = time()
@@ -674,6 +674,7 @@ if __name__ ==  '__main__':
         # game = SnakeGame(AIs=[AI_20220520 for _ in range(6)])
         game = SnakeGame(AIs=[AI_20220520 for _ in range(3)] + [AI_20220520_early for _ in range(3)])
         # game.run_till_end(savedir='game_info_test', print=True, time_sleep=0.5)
+        # game.run_till_end(print=True, time_sleep=0.5)
         game.run_till_end(print=False)
         time_total = time() - time_start
         print('Total time:', time_total)
